@@ -2,45 +2,42 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '14'  # Specify the Node.js version
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Build project
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
-          name: dist
-          path: dist/
+          path: dist
 
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
